@@ -1,24 +1,23 @@
 package com.vijay.BrainRoutingRagMCP20.config;
 
-
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class VectorStoreConfig {
 
-    private final EmbeddingModel embeddingModel;
+    private static final Logger logger = LoggerFactory.getLogger(VectorStoreConfig.class);
 
-    public VectorStoreConfig(EmbeddingModel embeddingModel) {
-        this.embeddingModel = embeddingModel;
-    }
-
+    // --- 1. Vector Store Bean (Correct) ---
     @Bean
-    public VectorStore vectorStore() {
+    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
         return SimpleVectorStore.builder(embeddingModel).build();
     }
-}
 
+
+}
