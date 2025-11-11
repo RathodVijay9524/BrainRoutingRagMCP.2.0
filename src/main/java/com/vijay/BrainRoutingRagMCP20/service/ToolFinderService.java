@@ -25,7 +25,7 @@ public class ToolFinderService {
         SearchRequest request = SearchRequest.builder()
                 .query(prompt)
                 .topK(3)
-                .similarityThreshold(0.7)
+                //.similarityThreshold(0.7)
                 .build();
 
         List<Document> similarDocuments = vectorStore.similaritySearch(request);

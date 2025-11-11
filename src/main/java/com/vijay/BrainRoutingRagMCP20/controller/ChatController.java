@@ -17,7 +17,10 @@ import java.util.List;
 @RestController
 public class ChatController {
 
-
+//http://localhost:9092/chat?prompt=What%20is%20the%20weather%20in%20London%3F
+    //http://localhost:9092/chat?prompt=Please%20send%20an%20email%20to%20vijay%40example.com%20saying%20'the%20RAG%20system%20is%20working'
+    //http://localhost:9092/chat?prompt=what%20is%20123%20plus%20456%3F
+    //http://localhost:9092/chat?prompt=what%20is%20the%20date%20and%20time%20right%20now%3F
 
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
 

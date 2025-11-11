@@ -43,7 +43,8 @@ public class ToolIndexingService implements ApplicationRunner {
             // Loop through the array
             for (ToolCallback tool : tools) {
 
-                // --- FIX 2 & 3: Use .getToolDefinition() ---
+                // --- FIX 2 & 3 ---
+                // In v1.0.3, you must use .getToolDefinition()
                 String toolName = tool.getToolDefinition().name();
                 String description = tool.getToolDefinition().description();
 

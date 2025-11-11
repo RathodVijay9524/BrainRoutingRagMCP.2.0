@@ -1,19 +1,23 @@
 package com.vijay.BrainRoutingRagMCP20.service;
 
-import com.vijay.BrainRoutingRagMCP20.manager.AiToolProvider;
 
+import com.vijay.BrainRoutingRagMCP20.manager.AiToolProvider;
+import lombok.RequiredArgsConstructor;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+// We no longer need java.util.function.Function
+// import java.util.function.Function;
 
 /**
  * This is our single, unified service that provides ALL AI tools.
  * It implements the AiToolProvider interface so the indexer can find it.
  */
 @Service
+@RequiredArgsConstructor
 public class AIAgentToolService implements AiToolProvider {
 
     // --- DTOs (Data Objects) for our tools ---
@@ -29,6 +33,7 @@ public class AIAgentToolService implements AiToolProvider {
     // --- TOOL 1: Normal Method ---
     @Tool(description = "Get the current date and time in the user's timezone")
     public String getCurrentDateTime() {
+        System.out.println("--- AI TOOL: Getting date tool called ");
         return LocalDateTime.now()
                 .atZone(LocaleContextHolder.getTimeZone().toZoneId())
                 .toString();
