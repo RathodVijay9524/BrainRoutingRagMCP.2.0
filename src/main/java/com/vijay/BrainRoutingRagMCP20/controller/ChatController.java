@@ -1,8 +1,8 @@
 package com.vijay.BrainRoutingRagMCP20.controller;
 
-import com.vijay.BrainRoutingRagMCP20.service.AIAgentToolService;
 import com.vijay.BrainRoutingRagMCP20.service.ToolFinderService;
 import org.springframework.ai.chat.client.ChatClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 public class ChatController {
 
-//http://localhost:9092/chat?prompt=What%20is%20the%20weather%20in%20London%3F
+    //http://localhost:9092/chat?prompt=What%20is%20the%20weather%20in%20London%3F
     //http://localhost:9092/chat?prompt=Please%20send%20an%20email%20to%20vijay%40example.com%20saying%20'the%20RAG%20system%20is%20working'
     //http://localhost:9092/chat?prompt=what%20is%20123%20plus%20456%3F
     //http://localhost:9092/chat?prompt=what%20is%20the%20date%20and%20time%20right%20now%3F
@@ -31,21 +31,9 @@ public class ChatController {
 
     @Autowired
     public ChatController(ToolFinderService toolFinder,
-                          AIAgentToolService aiAgentToolService,
-                          ChatClient.Builder openAiChatClientBuilder) {
-
+                         ChatClient chatClient) {
         this.toolFinder = toolFinder;
-
-        // --- THIS IS THE EFFICIENT PATTERN ---
-        // 1. Build the ChatClient ONCE in the constructor.
-        // 2. Give it ALL your tools (e.g., all 200) just one time.
-        //    The .toolNames() call later will filter them for each request.
-
-        // --- THIS IS THE FIX ---
-        // The method is .defaultTools() not .tools() on the builder.
-        this.chatClient = openAiChatClientBuilder
-                .defaultTools(aiAgentToolService) // Registers all @Tool methods from your service
-                .build();
+        this.chatClient = chatClient;
     }
 
     /**
@@ -69,15 +57,7 @@ public class ChatController {
         // Use the single, pre-built chatClient.
         String content = this.chatClient.prompt()
                 .user(prompt)
-
-                // --- THIS IS THE CORRECT API CALL ---
-                // .toolNames() filters the *entire* tool list (from aiAgentToolService)
-                // for this request only. This is the "on-demand" RAG pattern.
                 .toolNames(toolNamesArray)
-
-                // .call().content() handles the entire recursive loop
-                // (e.g., call tool -> get result -> call another tool)
-                // and returns the final text response.
                 .call()
                 .content();
 

@@ -47,7 +47,7 @@ public class AIAgentToolService implements AiToolProvider {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
-    public record GoogleSearchRequest(String query, Integer numResults) {}
+   public record GoogleSearchRequest(String query, Integer numResults) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record SerpApiResponse(List<OrganicResult> organic_results) {}

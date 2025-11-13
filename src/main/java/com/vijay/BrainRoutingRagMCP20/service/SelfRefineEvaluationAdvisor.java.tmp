@@ -1,0 +1,170 @@
+package com.vijay.BrainRoutingRagMCP20.service;
+
+import com.vijay.BrainRoutingRagMCP20.config.JudgeAdvisor;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientRequest;
+import org.springframework.ai.chat.client.ChatClientResponse;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.stereotype.Component;
+
+@Component
+public class SelfRefineEvaluationAdvisor implements CallAdvisor {
+
+    private static final int MAX_REFINEMENTS = 2;
+    private final ChatClient judgeClient;
+
+    public SelfRefineEvaluationAdvisor(OpenAiChatModel judgeModel) {
+        this.judgeClient = ChatClient.builder(judgeModel).build();
+    }
+
+    @Override
+    public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
+        return adviseWithSafety(request, chain, 0);
+    }
+
+    private ChatClientResponse adviseWithSafety(ChatClientRequest request,
+                                                CallAdvisorChain chain,
+                                                int attempt) {
+
+        // 1) Stop if we've reached max attempts
+        if (attempt >= MAX_REFINEMENTS) {
+            System.out.println("⚠️ Max refinement attempts reached. Returning last result.");
+            return chain.nextCall(request); // use your API
+        }
+
+        // 2) Run the chain to get a response
+        ChatClientResponse response = chain.nextCall(request);
+
+        // safe extract of text
+        String answer = "(no content)";
+        if (response != null && response.chatResponse().getResult() != null && response.chatResponse().getResult().getOutput() != null) {
+            answer = response.chatResponse().getResult().getOutput().getText();
+        }
+
+        // 3) Judge it
+        String evaluationPrompt = """
+            Rate this answer from 1 to 5 and suggest improvement if <4:
+            ---
+            %s
+            ---
+        """.formatted(answer);
+
+        ChatResponse judgeResponse = judgeClient.prompt(evaluationPrompt).call().chatResponse();
+        String ratingStr = judgeResponse != null && judgeResponse.getResult() != null && judgeResponse.getResult().getOutput() != null
+                ? judgeResponse.getResult().getOutput().getText().trim()
+                : "";
+
+        int rating = 1;
+        try {
+            String digits = ratingStr.replaceAll("[^0-9]", "");
+            if (!digits.isEmpty()) rating = Integer.parseInt(digits);
+        } catch (Exception ex) {
+            // keep rating = 1
+        }
+        System.out.println("🧾 Judge rating: " + rating);
+
+        // 4) If OK, attach evaluation summary and return
+        if (rating >= 4) {
+            System.out.println("Answer approved with rating: " + rating + "/5");
+            // TODO: Fix the response modification logic
+            // The withText method is not available in this version of Spring AI
+            // Need to find the correct way to modify the response content
+            return response;
+        }
+
+        // 5) Build improved request
+        String improvedPrompt = """
+            The previous answer was rated %d/5.
+            Please improve it to be more accurate and helpful.
+            Original answer:
+            %s
+        """.formatted(rating, answer);
+
+        ChatClientRequest improvedRequest = request.mutate()
+                .prompt(request.prompt().augmentUserMessage(improvedPrompt))
+                .build();
+
+        // 6) Try to call the *sub-chain* (advisors after this advisor).
+        // If subChain is empty or calling it fails, fallback to original chain to avoid "No CallAdvisors available".
+        try {
+            CallAdvisorChain subChain = chain.copy(this); // create sub-chain
+            // Defensive: calling subChain.nextCall might throw IllegalStateException if no advisors available.
+            return subChain.nextCall(improvedRequest);
+        } catch (IllegalStateException e) {
+            // Fallback: recursively call adviseWithSafety but using the original chain.
+            System.out.println("⚠️ Sub-chain empty or unavailable, falling back to original chain. " + e.getMessage());
+            return adviseWithSafety(improvedRequest, chain, attempt + 1);
+        }
+    }
+    /*@Override
+    public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
+
+        if (attempt >= MAX_REFINEMENTS) {
+            System.out.println("⚠️ Max refinement attempts reached. Returning last result.");
+            return chain.nextCall(request);
+        }
+
+
+        // Step 1️⃣: बेसिक मॉडल से जवाब लेना
+        ChatClientResponse response = chain.nextCall(request);
+        String answer = response.chatResponse().getResult().getOutput().getText();
+
+        // Step 2️⃣: Judge मॉडल से evaluate करवाना
+        String evaluationPrompt = """
+            Please rate the following answer from 1 (bad) to 5 (excellent):
+            ---
+            %s
+            ---
+            Only return a number between 1 and 5.
+        """.formatted(answer);
+
+        ChatResponse judgeResponse = judgeClient
+                .prompt(evaluationPrompt)
+                .call()
+                .chatResponse();
+
+        String ratingStr = judgeResponse.getResult().getOutput().getText().trim();
+
+        int rating = JudgeAdvisor.evaluate(answer);
+
+        System.out.println("🧾 Judge rating: " + rating);
+
+        // Step 3️⃣: अगर रेटिंग 4 से कम है तो recursion
+        if (rating < 4) {
+            System.out.println("🔁 Re-evaluating... (rating too low)");
+
+            String newPrompt = """
+                The previous answer was rated %d/5.
+                Please improve your response to make it clearer and more accurate.
+                Original answer:
+                %s
+            """.formatted(rating, answer);
+
+            ChatClientRequest improvedRequest = request.mutate()
+                    .prompt(request.prompt().augmentUserMessage(newPrompt))
+                    .build();
+
+            // Recursive call - only continue from this point
+            return chain.copy(this).nextCall(improvedRequest);
+        }
+
+        // Step 4️⃣: Final result
+        return response;
+    }*/
+
+    @Override
+    public String getName() {
+        return "selfRefineEvaluationAdvisor";
+    }
+
+    @Override
+    public int getOrder() {
+        // आप चाहो तो order control कर सकते हो
+        return 1000;
+    }
+
+
+}
